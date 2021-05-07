@@ -1,0 +1,36 @@
+version: '3'
+services:  
+  influxdb:
+    image: quay.io/influxdb/influxdb:v2.0.4
+    volumes:
+      - influxdbv2:/.influxdbv2
+    ports:
+      - "8086:8086"
+  influxdb_cli:
+    links:
+      - influxdb
+    image: quay.io/influxdb/influxdb:v2.0.4
+    entrypoint: influx setup --bucket InfraMonitoring -t 1234567890 -o InfraMonitoring --username=user --password=Test@12345678 --host=http://influxdb:8086 -f
+    restart: on-failure:10
+    depends_on:
+      - influxdb
+  telegraf:
+    image: telegraf:1.18.0
+    links:
+      - influxdb
+    volumes:
+      - ./configs/mytelegraf.conf:/etc/telegraf/telegraf.conf
+    depends_on:
+      - influxdb_cli
+  grafana:
+    image: grafana/grafana:7.5.1
+    links:
+      - influxdb
+    ports: 
+      - "3000:3000"
+    volumes:
+      - ./configs/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml
+      - ./configs/grafana-dashboard.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml
+      - ./configs/dashboard.json:/var/lib/grafana/dashboards/dashboard.json
+volumes:
+  influxdbv2:
